@@ -643,11 +643,13 @@ async def test_run_utilities_returns_decline_before_mutating_action(
 
 
 @pytest.mark.asyncio
-async def test_run_utilities_skips_elicitation_when_disabled_in_context(
+async def test_run_utilities_skips_elicitation_when_disabled_by_server(
     monkeypatch,
 ) -> None:
     ctx = FakeContext()
-    ctx.state["disable_elicitation"] = True
+    from mistmcp.config import config
+    monkeypatch.setattr(config, "enable_write_tools", True)
+    monkeypatch.setattr(config, "disable_elicitation", True)
     recorded_call: dict[str, object] = {}
 
     def fake_bounce(

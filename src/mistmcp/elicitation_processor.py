@@ -17,9 +17,9 @@ class ElicitationUnavailableError(RuntimeError):
 
 async def config_elicitation_handler(message, ctx: Context):
 
-    if await ctx.get_state("disable_elicitation") is True:
-        logger.debug(
-            "Elicitation middleware: elicitation is disabled for this client, automatically accepting without prompting"
+    if config.enable_write_tools and config.disable_elicitation:
+        logger.warning(
+            "Elicitation middleware: server policy disables confirmation; automatically accepting"
         )
         return ElicitResult(action="accept")
 

@@ -21,13 +21,14 @@ class ElicitationMiddleware(Middleware):
     """Middleware to detect elicitation support and enable write tools accordingly.
 
     During MCP initialization, detects whether the client supports elicitation
-    (via MCP capabilities) or has explicitly opted out via the X-Disable-Elicitation
-    HTTP header (HTTP transport) or the --disable-elicitation flag (stdio transport).
+    (via MCP capabilities) or the operator has opted out with server configuration.
+    HTTP headers and query parameters cannot override server safety policy.
 
     Write tools are hidden at build time by _configure_write_visibility() in
     create_mcp_server; in stateful mode on_initialize re-resolves per-session
     visibility.
-    If either condition is detected, they are enabled for this session only.
+    If either condition is detected, update tools are enabled for this session.
+    Destructive write_delete tools remain hidden; clients cannot enable them.
     """
 
     async def on_initialize(
@@ -43,7 +44,6 @@ class ElicitationMiddleware(Middleware):
             return result
 
         enable_write_tools = False
-        enable_write_delete_tools = False
 
         # DANGER ZONE: If both enable_write_tools and disable_elicitation config flags are set, enable write tools
         # without elicitation safeguards. This is not recommended and should only be used for testing with non-malicious
@@ -77,41 +77,17 @@ class ElicitationMiddleware(Middleware):
                     exc,
                 )
 
-            # Check 2: Transport-specific elicitation bypass
+            # Legacy client policy overrides are ignored, without rejecting clients.
             if config.transport_mode == "http":
                 try:
                     from fastmcp.server.dependencies import get_http_request
 
                     request = get_http_request()
-                    if (
-                        request.headers.get("X-Disable-Elicitation", "false").lower()
-                        == "true"
-                    ):
-                        enable_write_tools = True
-                        if ctx is not None:
-                            await ctx.set_state("disable_elicitation", True)
+                    if ("X-Disable-Elicitation" in request.headers
+                            or "disable_elicitation" in request.query_params
+                            or "experimental" in request.query_params):
                         logger.debug(
-                            "Elicitation middleware: X-Disable-Elicitation header detected"
-                        )
-                    elif (
-                        request.query_params.get("disable_elicitation", "false").lower()
-                        == "true"
-                    ):
-                        enable_write_tools = True
-                        if ctx is not None:
-                            await ctx.set_state("disable_elicitation", True)
-                        logger.debug(
-                            "Elicitation middleware: disable_elicitation query parameter detected"
-                        )
-                    elif (
-                        request.query_params.get("experimental", "false").lower()
-                        == "true"
-                    ):
-                        enable_write_delete_tools = True
-                        if ctx is not None:
-                            await ctx.set_state("disable_elicitation", True)
-                        logger.debug(
-                            "Elicitation middleware: experimental query parameter detected (elicitation bypass)"
+                            "Elicitation middleware: ignoring client safety-policy overrides"
                         )
                 except Exception as exc:
                     logger.error(
@@ -123,14 +99,7 @@ class ElicitationMiddleware(Middleware):
                 "Elicitation middleware: write tools not enabled in config, skipping elicitation checks"
             )
 
-        if enable_write_delete_tools:
-            if ctx is not None:
-                await ctx.enable_components(tags={"write_delete"}, components={"tool"})
-                await ctx.disable_components(tags={"write"}, components={"tool"})
-            logger.debug(
-                "Elicitation middleware: write_delete tools enabled for this session"
-            )
-        elif enable_write_tools:
+        if enable_write_tools:
             if ctx is not None:
                 await ctx.enable_components(tags={"write"}, components={"tool"})
                 await ctx.disable_components(tags={"write_delete"}, components={"tool"})

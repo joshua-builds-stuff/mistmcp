@@ -25,7 +25,9 @@ class FakeCtx:
         return None
 
 
-async def test_auto_accepts_when_state_true(monkeypatch) -> None:
+async def test_auto_accepts_when_server_policy_allows(monkeypatch) -> None:
+    monkeypatch.setattr(config, "enable_write_tools", True)
+    monkeypatch.setattr(config, "disable_elicitation", True)
     monkeypatch.setattr(config, "stateless", True)
     monkeypatch.setattr(config, "transport_mode", "http")
     ctx = FakeCtx(state={"disable_elicitation": True})
