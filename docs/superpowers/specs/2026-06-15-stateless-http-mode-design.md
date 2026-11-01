@@ -1,5 +1,14 @@
 # Stateless HTTP transport mode — design
 
+> Security update (2026-11-01): policy is server-owned. Historical implementation
+> snippets below are design history; current behavior is documented in README
+> Tool Safety and the updated matrix below. Session state cannot authorize
+> no-confirmation mode. Only server `enable_write_tools` plus
+> `disable_elicitation` can do so. Destructive tools additionally require server
+> `enable_write_delete_tools` (CLI `--enable-write-delete-tools`, environment
+> `MISTMCP_ENABLE_WRITE_DELETE_TOOLS=true`). Neither opt-in comes from clients;
+> both are logged at startup.
+
 - **Date:** 2026-06-15
 - **Status:** Approved (design)
 - **Author:** Thomas Munzer (port assisted by Claude)
@@ -53,7 +62,7 @@ Each of the four tools in the write/mutation surface carries exactly one tag:
 | Tag | Tool | Build-time visibility today | How a mutation is gated today |
 |---|---|---|---|
 | `write` | `mist_update_configuration_objects` | **hidden** (server.py:200) | shown per session by middleware when write enabled |
-| `write_delete` | `mist_change_configuration_objects` (incl. DELETE) | **visible** | hidden per session by middleware unless `?experimental=true`; mutation always elicits |
+| `write_delete` | `mist_change_configuration_objects` (incl. DELETE) | hidden by default | requires server write and destructive opt-ins plus elicitation support or server confirmation opt-out |
 | `utilities_upgrade` | `mist_upgrades` | **visible, never touched** | mutating actions elicit only — **no `enable_write_tools` check** |
 | `utilities` | `mist_utilities` | visible (`utilities` tag) | mutating utilities hard-gated by `enable_write_tools` (`utilities.py:838`) **and** then elicit |
 
@@ -397,10 +406,11 @@ auto-accept; "fail-closed" = mutation refused with a clean `ToolError`.
 |---|---|---|---|---|---|
 | **Stateful normal** (read-only) | hidden | hidden | visible | visible | UT mutating hard-blocked (`enable_write_tools=False`); UP mutating elicits (fails if client lacks elicitation) |
 | **Stateful elicitation-capable** (write, client supports elicit) | visible | hidden | visible | visible | W/UP/UT mutating **elicit** (user prompted) |
-| **Stateful DANGER** (write + disable_elicitation) | visible | hidden | visible | visible | W/UP/UT mutating **auto** (session state set in on_initialize) |
-| **Stateful experimental** (write + `?experimental=true`) | hidden | visible | visible | visible | WD/UP/UT mutating **auto** |
+| **Stateful DANGER** (server write + disable_elicitation) | visible | hidden | visible | visible | W/UP/UT mutating **auto** from server config only |
+| **Stateful destructive** (server write + enable_write_delete_tools, client supports elicit) | hidden | visible | visible | visible | WD/UP/UT mutating **elicit** unless server disable_elicitation is also set |
 | **Stateless read-only** (no write; gate passes) | hidden | hidden | visible | visible | UT mutating hard-blocked (`enable_write_tools=False`); UP mutating **fail-closed** via the §5.7 guard (ElicitationUnavailableError ⇒ ToolError, deterministic — never calls `ctx.elicit()`); WD not listed |
-| **Stateless DANGER** (write + disable_elicitation; gate passes) | visible | hidden | visible | visible | W/UP/UT mutating **auto** (request-scoped state set in on_call_tool); WD hidden ⇒ no delete |
+| **Stateless DANGER** (server write + disable_elicitation; gate passes) | visible | hidden | visible | visible | W/UP/UT mutating **auto** from server config only |
+| **Stateless destructive DANGER** (server write + enable_write_delete_tools + disable_elicitation) | hidden | visible | visible | visible | WD/UP/UT mutating **auto** from server config only |
 
 Note: **stateless + http + write + NOT disable_elicitation** is **refused at startup**
 (§5.1) and so has no row.

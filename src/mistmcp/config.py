@@ -23,12 +23,14 @@ class ServerConfig:
         response_format: str = "json",
         log_file: str | None = None,
         stateless: bool = False,
+        enable_write_delete_tools: bool = False,
     ) -> None:
         self.transport_mode: str = transport_mode
         self.mist_apitoken: str = ""
         self.mist_host: str = ""
         self.debug = debug
         self.enable_write_tools = enable_write_tools
+        self.enable_write_delete_tools = enable_write_delete_tools
         self.disable_elicitation = disable_elicitation
         self.response_format = response_format
         self.log_file: str | None = log_file

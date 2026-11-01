@@ -14,10 +14,12 @@ from test_elicitation_middleware import FakeFastMCPContext, FakeMiddlewareContex
     (b"", [(b"x-disable-elicitation", b"true")]),
     (b"disable_elicitation=true", []),
     (b"experimental=true", []),
+    (b"enable_write_delete_tools=true", [(b"x-enable-write-delete-tools", b"true")]),
 ])
 @pytest.mark.parametrize("supports_elicitation", [False, True])
 async def test_client_cannot_override_server_policy(monkeypatch, query, headers, supports_elicitation):
     monkeypatch.setattr(config, "enable_write_tools", True)
+    monkeypatch.setattr(config, "enable_write_delete_tools", False)
     monkeypatch.setattr(config, "disable_elicitation", False)
     monkeypatch.setattr(config, "transport_mode", "http")
     monkeypatch.setattr(config, "stateless", False)
@@ -25,6 +27,8 @@ async def test_client_cannot_override_server_policy(monkeypatch, query, headers,
     monkeypatch.setattr("fastmcp.server.dependencies.get_http_request", lambda: request)
     ctx = FakeFastMCPContext()
     context = FakeMiddlewareContext(ctx)
+    context.message.params.enable_write_delete_tools = True
+    context.message.params.disable_elicitation = True
     if supports_elicitation:
         context.message.params.capabilities.elicitation = SimpleNamespace()
     await ElicitationMiddleware().on_initialize(context, AsyncMock(return_value="ok"))

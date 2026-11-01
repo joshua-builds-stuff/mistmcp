@@ -28,7 +28,7 @@ class ElicitationMiddleware(Middleware):
     create_mcp_server; in stateful mode on_initialize re-resolves per-session
     visibility.
     If either condition is detected, update tools are enabled for this session.
-    Destructive write_delete tools remain hidden; clients cannot enable them.
+    Destructive write_delete tools require a separate server-owned opt-in.
     """
 
     async def on_initialize(
@@ -101,8 +101,10 @@ class ElicitationMiddleware(Middleware):
 
         if enable_write_tools:
             if ctx is not None:
-                await ctx.enable_components(tags={"write"}, components={"tool"})
-                await ctx.disable_components(tags={"write_delete"}, components={"tool"})
+                visible = "write_delete" if config.enable_write_delete_tools else "write"
+                hidden = "write" if config.enable_write_delete_tools else "write_delete"
+                await ctx.enable_components(tags={visible}, components={"tool"})
+                await ctx.disable_components(tags={hidden}, components={"tool"})
             logger.debug("Elicitation middleware: write tools enabled for this session")
         else:
             await ctx.disable_components(

@@ -9,7 +9,25 @@ MCP Server providing Mist API access to LLM applications like Claude Desktop and
 
 By default, **only read-only tools are enabled** for safety. This allows AI assistants to query and analyze your Mist environment without risk of accidental modifications.
 
-To enable tools that can modify your configuration (create, update, delete operations), use the `--enable-write-tools` flag. Write tools are protected by **elicitation** - a confirmation mechanism that requires user approval before any configuration change is applied. This ensures you maintain full control over what changes the AI can make to your network. If the AI App doesn't support elicitation, write tools will be disabled for this client to prevent unintended consequences.
+To enable update tools, use `--enable-write-tools` (`MISTMCP_ENABLE_WRITE_TOOLS=true`).
+To expose destructive configuration tools instead, also set
+`--enable-write-delete-tools` (`MISTMCP_ENABLE_WRITE_DELETE_TOOLS=true`). This
+separate server-owned opt-in does **not** bypass confirmation. Without an
+elicitation-capable client, write tools remain hidden unless the operator
+separately disables confirmation.
+
+No-confirmation mode requires the server's `--disable-elicitation` flag or
+`MISTMCP_DISABLE_ELICITATION=true`, together with write tools enabled. Both the
+destructive-tool and confirmation opt-outs are logged at startup. Programmatic
+servers can set the corresponding `ServerConfig` fields. Stateless HTTP writes
+require the server's no-confirmation opt-in, because there is no elicitation
+channel; incompatible settings are refused at startup.
+
+Client headers, query parameters and initialize parameters cannot set either
+policy. Legacy `X-Disable-Elicitation`, `?disable_elicitation=true` and
+`?experimental=true` inputs are ignored (debug logged), not rejected. The MCP
+client mediates the human confirmation: operators who do not trust that client
+must leave write tools disabled.
 
 > ⚠️ The `--disable-elicitation` flag removes this safety mechanism and should only be used in controlled testing environments with trusted AI applications.
 

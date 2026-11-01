@@ -171,7 +171,8 @@ class TestMain:
             main()
 
         mock_start.assert_called_once_with(
-            "stdio", "127.0.0.1", 8000, False, False, False, "json", None, False
+            "stdio", "127.0.0.1", 8000, False, False, False, "json", None, False,
+            enable_write_delete_tools=False,
         )
 
     @patch("mistmcp.__main__.start")
@@ -181,7 +182,8 @@ class TestMain:
             main()
 
         mock_start.assert_called_once_with(
-            "stdio", "127.0.0.1", 8000, True, False, False, "json", None, False
+            "stdio", "127.0.0.1", 8000, True, False, False, "json", None, False,
+            enable_write_delete_tools=False,
         )
 
     def test_main_help_exits(self) -> None:
@@ -210,7 +212,8 @@ class TestMain:
             main()
 
         mock_start.assert_called_once_with(
-            "http", "0.0.0.0", 9000, False, False, False, "json", None, False
+            "http", "0.0.0.0", 9000, False, False, False, "json", None, False,
+            enable_write_delete_tools=False,
         )
 
     @patch("mistmcp.__main__.start")
@@ -218,7 +221,8 @@ class TestMain:
         with patch("sys.argv", ["mistmcp", "--transport", "http", "--stateless"]):
             main()
         mock_start.assert_called_once_with(
-            "http", "127.0.0.1", 8000, False, False, False, "json", None, True
+            "http", "127.0.0.1", 8000, False, False, False, "json", None, True,
+            enable_write_delete_tools=False,
         )
 
     @patch("mistmcp.__main__.start", side_effect=ConfigurationError("bad combo"))

@@ -232,7 +232,7 @@ def _write_visible_tags(config: ServerConfig) -> set[str]:
     ElicitationMiddleware.on_initialize re-resolves write/write_delete per session.
     """
     if config.enable_write_tools and config.disable_elicitation:
-        return {"write"}  # DANGER ZONE: update only, never write_delete
+        return {"write_delete"} if config.enable_write_delete_tools else {"write"}
     return set()  # read-only / elicitation-capable: hide both at build time
 
 

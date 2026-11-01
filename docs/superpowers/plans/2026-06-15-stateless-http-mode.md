@@ -1,5 +1,13 @@
 # Stateless HTTP Transport Mode Implementation Plan
 
+> Security update (2026-11-01): this is a historical implementation plan, not the
+> current safety contract. See README Tool Safety and the design's updated mode
+> matrix. Client headers/query parameters cannot opt out of confirmation or
+> expose destructive tools. Server `enable_write_tools` is the prerequisite;
+> `enable_write_delete_tools` exposes destructive tools and `disable_elicitation`
+> independently permits auto-accept. Both opt-ins are logged at startup. Do not
+> restore session-state authorization from the historical snippets below.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an opt-in stateless HTTP transport (`MISTMCP_STATELESS` / `--stateless`) so an already-connected MCP client survives a server restart, with default-off behavior byte-for-byte unchanged.
@@ -453,7 +461,7 @@ Delete the module-level transform and its comment (currently lines 197–200):
 ```python
 # Write tools are disabled by default and enabled per-session by
 # ElicitationMiddleware during initialization when the client declares
-# elicitation support or explicitly sends X-Disable-Elicitation: true.
+# elicitation support or the operator configures a server confirmation opt-out.
 mcp.add_transform(Visibility(False, tags={"write"}, components={"tool"}))
 ```
 

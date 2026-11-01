@@ -49,6 +49,7 @@ def start(
     response_format: str = "json",
     log_file: str | None = None,
     stateless: bool = False,
+    enable_write_delete_tools: bool = False,
 ) -> None:
     """Configure the global config and run the Mist MCP Server.
 
@@ -58,6 +59,7 @@ def start(
         debug: enable debug logging.
         enable_write_tools: expose write tools (gated by elicitation unless disabled).
         disable_elicitation: DANGER ZONE — auto-accept write actions without prompting.
+        enable_write_delete_tools: expose destructive tools; also requires write tools.
         response_format: "json" or "string" (http transport only).
         log_file: optional path to also write logs to.
         stateless: http only — serve statelessly (fresh transport per request) so a
@@ -69,6 +71,7 @@ def start(
     config.transport_mode = transport_mode
     config.debug = debug
     config.enable_write_tools = enable_write_tools
+    config.enable_write_delete_tools = enable_write_delete_tools
     config.disable_elicitation = disable_elicitation
     config.response_format = response_format
     config.log_file = log_file
@@ -89,6 +92,17 @@ def start(
     validate_stateless_config(config)
 
     logger.info("Starting Mist MCP Server — transport: %s", transport_mode)
+    if config.enable_write_delete_tools:
+        logger.warning(
+            "Server policy: destructive tools requested (enable_write_tools=%s); "
+            "confirmation remains required unless separately disabled.",
+            config.enable_write_tools,
+        )
+    if config.disable_elicitation:
+        logger.warning(
+            "Server policy: confirmation opt-out requested (enable_write_tools=%s).",
+            config.enable_write_tools,
+        )
     logger.debug("  MIST_HOST: %s", config.mist_host)
     logger.debug("  RESPONSE_FORMAT: %s", config.response_format)
     logger.debug("  ENABLE_WRITE_TOOLS: %s", config.enable_write_tools)
@@ -251,6 +265,12 @@ def main() -> None:
         help="Enable write tools. By default, only read tools are enabled for safety. This flag enabled the full set of tools including those that can modify configuration (secured with elicitation). Use with caution!",
     )
     parser.add_argument(
+        "--enable-write-delete-tools",
+        action="store_true",
+        help="Expose destructive configuration tools. Requires --enable-write-tools; "
+        "does not disable confirmation. Env: MISTMCP_ENABLE_WRITE_DELETE_TOOLS.",
+    )
+    parser.add_argument(
         "--disable-elicitation",
         action="store_true",
         help="DANGER ZONE!!! Disable elicitation for write tools. This will allow any AI App to modify configuration objects without confirmation. Use only for testing with non-malicious AI Apps or if you have other safeguards in place. Do NOT use this in production or with untrusted AI Apps!",
@@ -277,6 +297,9 @@ def main() -> None:
     args = parser.parse_args()
 
     load_env_file(args.env_file)
+    enable_write_delete_tools = os.getenv(
+        "MISTMCP_ENABLE_WRITE_DELETE_TOOLS", str(args.enable_write_delete_tools)
+    ).lower() in ("true", "1", "yes")
 
     (
         transport_mode,
@@ -311,6 +334,7 @@ def main() -> None:
             response_format,
             log_file,
             stateless,
+            enable_write_delete_tools=enable_write_delete_tools,
         )
     except ConfigurationError as exc:
         logger.error("Invalid configuration: %s", exc)
